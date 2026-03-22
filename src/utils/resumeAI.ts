@@ -1,12 +1,13 @@
 import type {
     ResumeAnalysisResult,
+    ResumeCoverLetterResult,
     ResumeDraftUploadResult,
     ResumeGeneratedSection,
     ResumeWorkspaceSection,
 } from "@/src/types/resumeWorkspace";
 
 interface ResumeAIRequest {
-    action: "analyze" | "generate-section" | "generate-css" | "upload-draft";
+    action: "analyze" | "generate-section" | "generate-css" | "upload-draft" | "generate-cover-letter";
     payload: Record<string, unknown>;
 }
 
@@ -15,6 +16,7 @@ interface ResumeAIResponse {
     generatedSection?: ResumeGeneratedSection;
     css?: string;
     draft?: ResumeDraftUploadResult;
+    coverLetter?: ResumeCoverLetterResult;
     error?: string;
 }
 
@@ -84,4 +86,15 @@ export async function uploadResumeDraft(payload: {
     const draft = await requestResumeAI("upload-draft", payload, "draft");
     if (!draft) throw new Error("Draft response was empty.");
     return draft;
+}
+
+export async function generateCoverLetter(payload: {
+    jobDescription: string;
+    company?: string;
+    hiringManager?: string;
+    sections: ResumeWorkspaceSection[];
+}): Promise<ResumeCoverLetterResult> {
+    const coverLetter = await requestResumeAI("generate-cover-letter", payload, "coverLetter");
+    if (!coverLetter) throw new Error("Cover letter response was empty.");
+    return coverLetter;
 }

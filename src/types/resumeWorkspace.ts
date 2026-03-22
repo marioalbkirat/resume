@@ -1,4 +1,4 @@
-export type ResumeWorkspaceTab = "templates" | "analyze" | "manage" | "customize" | "builder";
+export type ResumeWorkspaceTab = "templates" | "analyze" | "manage" | "customize" | "builder" | "cover-letter";
 export type ResumeWorkspaceMode = "ATS" | "Regular";
 export type ResumeAnalysisMode = "resume" | "job";
 
@@ -43,4 +43,13 @@ export interface ResumeDraftUploadResult {
     extractedText: string;
     sections: ResumeWorkspaceSection[];
     draftSummary: string;
+}
+
+export interface ResumeCoverLetterResult {
+    subject?: string;
+    greeting: string;
+    opening: string;
+    body: string[];
+    closing: string;
+    signature: string;
 }

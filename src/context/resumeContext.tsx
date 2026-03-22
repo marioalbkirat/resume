@@ -3,12 +3,14 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 import {
     analyzeResume,
+    generateCoverLetter,
     generateResumeCss,
     generateSectionJson,
     uploadResumeDraft,
 } from "@/src/utils/resumeAI";
 import type {
     ResumeAnalysisResult,
+    ResumeCoverLetterResult,
     ResumeGeneratedSection,
     ResumeWorkspaceMode,
     ResumeWorkspaceSection,
@@ -82,6 +84,12 @@ interface ResumeContextValue {
     customSectionPrompt: string;
     setCustomSectionPrompt: (value: string) => void;
     generatedSections: ResumeGeneratedSection[];
+    coverLetterCompany: string;
+    setCoverLetterCompany: (value: string) => void;
+    coverLetterHiringManager: string;
+    setCoverLetterHiringManager: (value: string) => void;
+    coverLetterResult: ResumeCoverLetterResult | null;
+    coverLetterStatus: string;
     isBusy: boolean;
     runAnalysis: () => Promise<void>;
     applyAnalysis: () => Promise<void>;
@@ -90,6 +98,7 @@ interface ResumeContextValue {
     optimizeSection: (sectionId: string) => Promise<void>;
     generateCustomSection: () => Promise<void>;
     buildCss: () => Promise<void>;
+    createCoverLetter: () => Promise<void>;
     acceptGeneratedCss: () => void;
     toggleSectionVisibility: (sectionId: string) => void;
     moveSection: (sectionId: string, direction: "up" | "down") => void;
@@ -131,6 +140,10 @@ export function ResumeProvider({ children, resumeId }: { children: React.ReactNo
     const [uploadedDraftSummary, setUploadedDraftSummary] = useState("Upload a PDF, DOC, or DOCX resume to extract sections into Draft-ready data.");
     const [customSectionPrompt, setCustomSectionPrompt] = useState("Add a Volunteer Leadership section highlighting mentorship, community workshops, and measurable outcomes.");
     const [generatedSections, setGeneratedSections] = useState<ResumeGeneratedSection[]>([]);
+    const [coverLetterCompany, setCoverLetterCompany] = useState("");
+    const [coverLetterHiringManager, setCoverLetterHiringManager] = useState("");
+    const [coverLetterResult, setCoverLetterResult] = useState<ResumeCoverLetterResult | null>(null);
+    const [coverLetterStatus, setCoverLetterStatus] = useState("Paste a job description, then generate a tailored cover letter from your live resume sections.");
     const [isBusy, setIsBusy] = useState(false);
 
     const sortedSections = useMemo(
@@ -271,6 +284,31 @@ export function ResumeProvider({ children, resumeId }: { children: React.ReactNo
         }
     }, [builderPrompt, sortedSections]);
 
+    const createCoverLetter = useCallback(async () => {
+        if (!jobDescription.trim()) {
+            setCoverLetterStatus("Add a job description before generating a cover letter.");
+            return;
+        }
+
+        setIsBusy(true);
+        setCoverLetterStatus("Generating cover letter...");
+        try {
+            const result = await generateCoverLetter({
+                jobDescription,
+                company: coverLetterCompany,
+                hiringManager: coverLetterHiringManager,
+                sections: sortedSections,
+            });
+            setCoverLetterResult(result);
+            setCoverLetterStatus("Cover letter generated successfully.");
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Cover letter generation failed.";
+            setCoverLetterStatus(message);
+        } finally {
+            setIsBusy(false);
+        }
+    }, [coverLetterCompany, coverLetterHiringManager, jobDescription, sortedSections]);
+
     const acceptGeneratedCss = () => {
         setBuilderAccepted(true);
         setBuilderStatus("Accepted CSS is ready to store on the Resume record for this shared template structure.");
@@ -325,6 +363,12 @@ export function ResumeProvider({ children, resumeId }: { children: React.ReactNo
         customSectionPrompt,
         setCustomSectionPrompt,
         generatedSections,
+        coverLetterCompany,
+        setCoverLetterCompany,
+        coverLetterHiringManager,
+        setCoverLetterHiringManager,
+        coverLetterResult,
+        coverLetterStatus,
         isBusy,
         runAnalysis,
         applyAnalysis,
@@ -333,6 +377,7 @@ export function ResumeProvider({ children, resumeId }: { children: React.ReactNo
         optimizeSection,
         generateCustomSection,
         buildCss,
+        createCoverLetter,
         acceptGeneratedCss,
         toggleSectionVisibility,
         moveSection,
@@ -356,6 +401,10 @@ export function ResumeProvider({ children, resumeId }: { children: React.ReactNo
         uploadedDraftSummary,
         customSectionPrompt,
         generatedSections,
+        coverLetterCompany,
+        coverLetterHiringManager,
+        coverLetterResult,
+        coverLetterStatus,
         isBusy,
         runAnalysis,
         applyAnalysis,
@@ -363,6 +412,7 @@ export function ResumeProvider({ children, resumeId }: { children: React.ReactNo
         optimizeSection,
         generateCustomSection,
         buildCss,
+        createCoverLetter,
     ]);
 
     return <ResumeContext.Provider value={value}>{children}</ResumeContext.Provider>;
