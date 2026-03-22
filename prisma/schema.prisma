@@ -239,6 +239,8 @@ model Resume {
   image       String
   features    String[]
   description String       @db.VarChar(200)
+  html        String       @default("")
+  css         String       @default("")
   planId      String
   plan        Plan         @relation(fields: [planId], references: [id])
   resumeUsers ResumeUser[]
@@ -251,6 +253,7 @@ model ResumeUser {
   userId                String   @unique
   resumeId              String
   content               Json
+  aiGeneratedSections   Json?
   isDownloaded          Boolean  @default(false)
   isLinkedWithPortfolio Boolean  @default(false)
   updatedAt             DateTime @updatedAt
@@ -283,6 +286,7 @@ model Draft {
   userId    String
   entity    DraftType
   content   Json
+  aiGeneratedSections Json?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)

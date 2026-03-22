@@ -10,6 +10,8 @@ export interface Resume {
     image: string;
     features: string[];
     description: string;
+    html: string;
+    css: string;
     planId: string;
     plan?: Plan;
     resumeUsers?: ResumeUser[];
