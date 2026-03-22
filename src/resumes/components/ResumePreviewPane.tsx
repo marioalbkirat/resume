@@ -1,7 +1,27 @@
 "use client";
 
-import { FiFileText } from "react-icons/fi";
+import InlineEditText from "@/src/lib/inlineEdit/inlineEditText";
 import { useResume } from "@/src/context/resumeContext";
+
+const SECTION_CLASS_MAP: Record<string, string> = {
+    profile: "header",
+    contact: "contact",
+    education: "education",
+    experience: "experience",
+    projects: "projects",
+    languages: "languages",
+    skills: "skills",
+};
+
+function updateSectionText(
+    sectionId: string,
+    value: string,
+    setSections: ReturnType<typeof useResume>["setSections"],
+) {
+    setSections((current) => current.map((section) => (
+        section.id === sectionId ? { ...section, text: value } : section
+    )));
+}
 
 export default function ResumePreviewPane() {
     const {
@@ -14,88 +34,130 @@ export default function ResumePreviewPane() {
         setSections,
     } = useResume();
 
+    const visibleSections = sections.filter((section) => section.visible);
+    const profileSection = visibleSections.find((section) => section.id === "profile");
+    const sidebarSections = visibleSections.filter((section) => ["contact", "education", "languages", "skills"].includes(section.id));
+    const mainSections = visibleSections.filter((section) => !["profile", "contact", "education", "languages", "skills"].includes(section.id));
+
     return (
         <section className="rounded-[32px] border border-slate-200 bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.08)] sm:p-6">
             <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Live resume preview</p>
-                    <h2 className="mt-2 text-2xl font-semibold text-slate-900">Interactive shared-HTML resume canvas</h2>
+                    <h2 className="mt-2 text-2xl font-semibold text-slate-900">Resume layout with shared HTML section structure</h2>
                 </div>
                 <div className="flex flex-wrap gap-2 text-xs font-medium text-slate-500">
                     <span className="rounded-full bg-slate-100 px-3 py-1">Template: {selectedTemplate}</span>
                     <span className="rounded-full bg-slate-100 px-3 py-1">Mode: {resumeStyle}</span>
-                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">Stored CSS per resume</span>
+                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">Resume preview on the right</span>
                 </div>
             </div>
 
             <div className="mt-6 rounded-[28px] bg-slate-950 p-4 sm:p-5">
-                <div className="mx-auto min-h-[920px] max-w-3xl rounded-[24px] bg-white p-6 shadow-2xl shadow-slate-950/10 sm:p-8">
-                    <div className="flex flex-col gap-6 border-b border-slate-100 pb-6 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                            <h3 className="text-3xl font-semibold tracking-tight text-slate-950">Alex Morgan</h3>
-                            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                                Senior product engineer focused on AI-enhanced resume experiences, high-conversion portfolio journeys, and polished front-end systems.
-                            </p>
-                        </div>
-                        {resumeStyle === "Regular" ? (
-                            <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-linear-to-br from-indigo-500 via-violet-500 to-sky-400 text-xl font-semibold text-white shadow-lg shadow-indigo-500/30">
-                                AM
+                <div className="resume mx-auto min-h-[920px] max-w-4xl rounded-[12px] bg-white p-0 text-slate-900 shadow-2xl shadow-slate-950/10">
+                    <div className="border-b border-slate-200 px-8 py-8 sm:px-10">
+                        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="space-y-3">
+                                <InlineEditText
+                                    as="h1"
+                                    title="Full name"
+                                    initialValue="Alex Morgan"
+                                    className="text-4xl font-semibold uppercase tracking-[0.18em] text-slate-900"
+                                />
+                                <InlineEditText
+                                    as="h2"
+                                    title="Professional title"
+                                    initialValue="Senior Product Engineer"
+                                    className="text-base uppercase tracking-[0.28em] text-slate-500"
+                                />
                             </div>
-                        ) : (
-                            <div className="rounded-2xl border border-dashed border-slate-200 px-3 py-2 text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
-                                ATS mode hides avatar/icons/colors
+                            <div className="max-w-sm text-right text-xs leading-6 text-slate-500">
+                                <p>Structured like a real resume, inspired by the Olivia template, with editable content blocks and a consistent HTML skeleton.</p>
                             </div>
-                        )}
-                    </div>
-
-                    <div className="mt-6 flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                        <div className="inline-flex items-center gap-2">
-                            <FiFileText className="h-4 w-4 text-indigo-500" /> Three-page limit awareness stays consistent across templates.
                         </div>
-                        <span>{sections.filter((section) => section.visible).length} visible sections</span>
-                    </div>
-
-                    <div className="mt-6 grid gap-4 md:grid-cols-2">
-                        {sections.filter((section) => section.visible).map((section) => {
-                            const isEditing = previewMode === "edit" && editableSectionId === section.id;
-                            return (
-                                <article
-                                    key={section.id}
-                                    className="rounded-3xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-indigo-200 hover:bg-indigo-50/40"
-                                >
-                                    <div className="mb-3 flex items-center justify-between gap-3">
-                                        <div>
-                                            <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-700">{section.title}</h4>
-                                            {section.badge ? (
-                                                <span className="mt-1 inline-flex rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-slate-500 shadow-sm">
-                                                    {section.badge}
-                                                </span>
-                                            ) : null}
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setEditableSectionId(section.id)}
-                                            className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
-                                        >
-                                            {previewMode === "edit" ? "Inline edit" : "Preview"}
-                                        </button>
-                                    </div>
-                                    {isEditing ? (
+                        {profileSection ? (
+                            <section className="header mt-6">
+                                <div className="space-y-2">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Professional summary</p>
+                                    {previewMode === "edit" && editableSectionId === profileSection.id ? (
                                         <textarea
-                                            value={section.text}
-                                            onChange={(event) =>
-                                                setSections((current) => current.map((item) =>
-                                                    item.id === section.id ? { ...item, text: event.target.value } : item,
-                                                ))
-                                            }
-                                            className="min-h-32 w-full resize-none rounded-2xl border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-700 outline-none transition focus:border-indigo-400"
+                                            value={profileSection.text}
+                                            onChange={(event) => updateSectionText(profileSection.id, event.target.value, setSections)}
+                                            className="min-h-28 w-full resize-none rounded-xl border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-700 outline-none transition focus:border-indigo-400"
                                         />
                                     ) : (
-                                        <p className="text-sm leading-6 text-slate-600">{section.text}</p>
+                                        <p className="text-sm leading-7 text-slate-600">{profileSection.text}</p>
                                     )}
-                                </article>
-                            );
-                        })}
+                                </div>
+                            </section>
+                        ) : null}
+                    </div>
+
+                    <div className="resume-grid grid gap-0 lg:grid-cols-[0.9fr_1.55fr]">
+                        <aside className="border-r border-slate-200 bg-slate-50 px-8 py-8 sm:px-10">
+                            {sidebarSections.map((section) => {
+                                const isEditing = previewMode === "edit" && editableSectionId === section.id;
+                                return (
+                                    <section key={section.id} className={`${SECTION_CLASS_MAP[section.id] ?? section.id} mb-8 last:mb-0`}>
+                                        <div className="mb-3 flex items-center justify-between gap-3">
+                                            <h3 className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-900">{section.title}</h3>
+                                            <button
+                                                type="button"
+                                                onClick={() => setEditableSectionId(section.id)}
+                                                className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                                            >
+                                                {previewMode === "edit" ? "Edit" : "View"}
+                                            </button>
+                                        </div>
+                                        {isEditing ? (
+                                            <textarea
+                                                value={section.text}
+                                                onChange={(event) => updateSectionText(section.id, event.target.value, setSections)}
+                                                className="min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-700 outline-none transition focus:border-indigo-400"
+                                            />
+                                        ) : (
+                                            <p className="whitespace-pre-line text-sm leading-7 text-slate-600">{section.text}</p>
+                                        )}
+                                    </section>
+                                );
+                            })}
+                        </aside>
+
+                        <div className="px-8 py-8 sm:px-10">
+                            {mainSections.map((section) => {
+                                const isEditing = previewMode === "edit" && editableSectionId === section.id;
+                                return (
+                                    <section key={section.id} className={`${SECTION_CLASS_MAP[section.id] ?? section.id} mb-8 border-b border-slate-100 pb-8 last:mb-0 last:border-b-0 last:pb-0`}>
+                                        <div className="mb-4 flex items-center justify-between gap-3">
+                                            <div>
+                                                <h3 className="text-lg font-semibold uppercase tracking-[0.14em] text-slate-900">{section.title}</h3>
+                                                {section.badge ? (
+                                                    <span className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">
+                                                        {section.badge}
+                                                    </span>
+                                                ) : null}
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setEditableSectionId(section.id)}
+                                                className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                                            >
+                                                {previewMode === "edit" ? "Edit" : "View"}
+                                            </button>
+                                        </div>
+                                        {isEditing ? (
+                                            <textarea
+                                                value={section.text}
+                                                onChange={(event) => updateSectionText(section.id, event.target.value, setSections)}
+                                                className="min-h-28 w-full resize-none rounded-xl border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-700 outline-none transition focus:border-indigo-400"
+                                            />
+                                        ) : (
+                                            <p className="whitespace-pre-line text-sm leading-7 text-slate-600">{section.text}</p>
+                                        )}
+                                    </section>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
             </div>

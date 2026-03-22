@@ -1,5 +1,5 @@
 "use client";
-import { useState, ReactNode, JSX, KeyboardEvent } from "react";
+import { useState, ReactNode, JSX, KeyboardEvent, HTMLAttributes } from "react";
 
 interface InlineEditProps {
     initialValue: string;
@@ -61,15 +61,21 @@ export default function InlineEditText({
     const handleClick = () => {
         setIsEditing(true);
         setTimeout(() => {
+            const activeEditableElement = document.querySelector<HTMLElement>(".editable-text.editing");
+            if (!activeEditableElement) return;
+
             const selection = window.getSelection();
             const range = document.createRange();
-            range.selectNodeContents(document.querySelector('.editable-text.editing') as Node);
+            range.selectNodeContents(activeEditableElement);
             selection?.removeAllRanges();
             selection?.addRange(range);
         }, 0);
     };
-    const elementProps: any = {
-        title:title,
+    const elementProps: HTMLAttributes<HTMLElement> & {
+        contentEditable: boolean;
+        suppressContentEditableWarning: boolean;
+    } = {
+        title,
         className: `editable-text ${isEditing ? "editing" : ""} ${className || ""}`,
         contentEditable: isEditing,
         suppressContentEditableWarning: true,
