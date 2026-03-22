@@ -15,6 +15,17 @@ interface ResumeAIResponse {
     generatedSection?: ResumeGeneratedSection;
     css?: string;
     draft?: ResumeDraftUploadResult;
+    error?: string;
+}
+
+function parseResumeAIResponse(responseText: string): ResumeAIResponse {
+    if (!responseText) return {};
+
+    try {
+        return JSON.parse(responseText) as ResumeAIResponse;
+    } catch {
+        return { error: responseText.trim() || "Resume AI request failed." };
+    }
 }
 
 async function requestResumeAI<T extends keyof ResumeAIResponse>(
@@ -30,12 +41,13 @@ async function requestResumeAI<T extends keyof ResumeAIResponse>(
         body: JSON.stringify({ action, payload }),
     });
 
+    const responseText = await response.text();
+    const data = parseResumeAIResponse(responseText);
+
     if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: "Resume AI request failed." }));
-        throw new Error(error.error ?? "Resume AI request failed.");
+        throw new Error(data.error ?? "Resume AI request failed.");
     }
 
-    const data = (await response.json()) as ResumeAIResponse;
     return data[key];
 }
 
