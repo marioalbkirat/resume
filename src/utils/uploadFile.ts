@@ -1,7 +1,14 @@
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+
+type DirectoryConfig = {
+    folder: string;
+    buildPath: (uid?: string) => { absolutePath: string; relativePath: string };
+};
+
 export class UploadFile {
+    public static readonly allowedTypes: string[] = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/avif", "image/svg+xml", "image/bmp", "image/tiff", "image/x-icon", "image/vnd.microsoft.icon", "application/pdf"];
     public static readonly DEFAULT_MAX_SIZE: number = process.env.DEFAULT_MAX_SIZE ? Number(process.env.DEFAULT_MAX_SIZE) : 3 * 1024 * 1024;
     private maxFileSize: number = UploadFile.DEFAULT_MAX_SIZE;
     private folderName: string;
@@ -10,8 +17,8 @@ export class UploadFile {
     private allowedTypes: string[];
     constructor(folderName: string, userId: string, olderFile?: string | null | undefined) {
         this.userId = userId;
-        this.allowedTypes = allowedTypes ?? UploadFile.allowedTypes.slice();
-        this.setFileSize(fileSize);
+        this.allowedTypes = UploadFile.allowedTypes.slice();
+        this.maxFileSize = UploadFile.DEFAULT_MAX_SIZE;
         this.folderName = folderName;
         this.ensureFolderExists();
         if (olderFile) this.olderFile = olderFile;
@@ -23,7 +30,7 @@ export class UploadFile {
     }
     public static getDirectory(folder: string, userId?: string): { absolutePath: string; relativePath: string } {
         const stage = this.computeStage();
-        const directories = [
+        const directories: DirectoryConfig[] = [
             {
                 folder: "portfolios-images",
                 buildPath: () => ({
@@ -64,10 +71,9 @@ export class UploadFile {
             }
         ];
 
-        const dir = directories.find(d => d.folder === folder);
+        const dir = directories.find((entry) => entry.folder === folder);
         if (!dir) throw new Error(`Folder "${folder}" is not defined`);
-        const build = (dir as any).buildPath;
-        return build(userId);
+        return dir.buildPath(userId);
     }
     private setFileSize(fileSize: string): void {
         const match = fileSize.toLowerCase().match(/^(\d+)(kb|mb)$/);

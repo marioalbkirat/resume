@@ -107,7 +107,7 @@ class FieldValidator {
             } else {
                 try {
                     new URL(this.value);
-                } catch (e) {
+                } catch {
                     this.errors.push({
                         fieldName: this.fieldName,
                         errorMessage: `Invalid URL: ${this.value}`

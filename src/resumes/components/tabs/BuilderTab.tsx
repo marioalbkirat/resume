@@ -1,6 +1,6 @@
 "use client";
 
-import { FiCheckCircle, FiSparkles } from "react-icons/fi";
+import { FiCheckCircle, FiStar } from "react-icons/fi";
 import { useResume } from "@/src/context/resumeContext";
 
 export default function BuilderTab() {
@@ -35,7 +35,7 @@ export default function BuilderTab() {
                     disabled={isBusy}
                     className="mt-3 inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
                 >
-                    <FiSparkles className="h-4 w-4" /> Generate CSS
+                    <FiStar className="h-4 w-4" /> Generate CSS
                 </button>
             </div>
             <div className="rounded-3xl bg-slate-950 p-4 text-sm text-slate-100">

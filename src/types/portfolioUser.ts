@@ -1,5 +1,6 @@
 import { User } from "./user";
 import { Portfolio } from "./portfolio";
+import { JsonValue } from "./json";
 
 export interface PortfolioUser {
     id: string;
@@ -7,7 +8,7 @@ export interface PortfolioUser {
     portfolioId: string;
     html: string;
     subdomain: string | null;
-    content: any;
+    content: JsonValue;
     isDeployed: boolean;
     countOfDeploy: number | null;
     updatedAt: Date;
