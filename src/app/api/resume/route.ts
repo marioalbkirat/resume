@@ -13,17 +13,39 @@ type ResumeType = Omit<Resume, "resumeUsers" | "plan">;
 
 type ResumeAction = "analyze" | "generate-section" | "generate-css" | "upload-draft";
 
+type OpenRouterMessageContent = string | Array<{ type?: string; text?: string }>;
+
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const OPENROUTER_MODEL = "stepfun/step-3.5-flash";
+const OPENROUTER_TIMEOUT_MS = 10000;
+
+function normalizeMessageContent(content: OpenRouterMessageContent | undefined): string {
+    if (typeof content === "string") return content;
+    if (Array.isArray(content)) {
+        return content
+            .map((item) => (typeof item?.text === "string" ? item.text : ""))
+            .join("")
+            .trim();
+    }
+
+    return "";
+}
 
 async function parseAIResponse<T>(response: Response): Promise<T> {
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-    if (!content || typeof content !== "string") {
+    const rawContent = normalizeMessageContent(data.choices?.[0]?.message?.content);
+
+    if (!rawContent) {
         throw new Error("The AI API returned an empty response.");
     }
 
-    return JSON.parse(content.replace(/^```json\s*/, "").replace(/```$/, "").trim()) as T;
+    const sanitizedContent = rawContent
+        .replace(/^```json\s*/i, "")
+        .replace(/^```/i, "")
+        .replace(/```$/, "")
+        .trim();
+
+    return JSON.parse(sanitizedContent) as T;
 }
 
 async function callOpenRouter<T>(systemPrompt: string, userPrompt: string): Promise<T | null> {
@@ -47,6 +69,7 @@ async function callOpenRouter<T>(systemPrompt: string, userPrompt: string): Prom
                 temperature: 0,
                 max_tokens: 2500,
             }),
+            signal: AbortSignal.timeout(OPENROUTER_TIMEOUT_MS),
         });
 
         if (!response.ok) {
@@ -57,7 +80,8 @@ async function callOpenRouter<T>(systemPrompt: string, userPrompt: string): Prom
 
         return await parseAIResponse<T>(response);
     } catch (error) {
-        console.error("Resume AI provider parsing failed.", error);
+        const message = error instanceof Error ? error.message : "Unknown error";
+        console.error(`Resume AI provider request failed. Falling back to defaults. ${message}`);
         return null;
     }
 }
