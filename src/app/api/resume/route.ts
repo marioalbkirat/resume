@@ -20,6 +20,13 @@ const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const OPENROUTER_MODEL = "stepfun/step-3.5-flash";
 const OPENROUTER_TIMEOUT_MS = 30000;
 
+class ResumeAIUnavailableError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "ResumeAIUnavailableError";
+    }
+}
+
 function normalizeMessageContent(content: OpenRouterMessageContent | undefined): string {
     if (typeof content === "string") return content;
     if (Array.isArray(content)) {
@@ -52,27 +59,34 @@ async function parseAIResponse<T>(response: Response): Promise<T> {
 async function callOpenRouter<T>(systemPrompt: string, userPrompt: string): Promise<T> {
     const apiKey = process.env.OPENROUTER_KEY ?? process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
-        throw new Error("Missing OPENROUTER_KEY or OPENROUTER_API_KEY.");
+        throw new ResumeAIUnavailableError("Missing OPENROUTER_KEY or OPENROUTER_API_KEY.");
     }
 
-    const response = await fetch(OPENROUTER_URL, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-            model: OPENROUTER_MODEL,
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userPrompt },
-            ],
-            response_format: { type: "json_object" },
-            temperature: 0,
-            max_tokens: 2500,
-        }),
-        signal: AbortSignal.timeout(OPENROUTER_TIMEOUT_MS),
-    });
+    let response: Response;
+
+    try {
+        response = await fetch(OPENROUTER_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+                model: OPENROUTER_MODEL,
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userPrompt },
+                ],
+                response_format: { type: "json_object" },
+                temperature: 0,
+                max_tokens: 2500,
+            }),
+            signal: AbortSignal.timeout(OPENROUTER_TIMEOUT_MS),
+        });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown AI provider error.";
+        throw new ResumeAIUnavailableError(message);
+    }
 
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
@@ -81,10 +95,181 @@ async function callOpenRouter<T>(systemPrompt: string, userPrompt: string): Prom
             typeof error?.error?.message === "string"
                 ? error.error.message
                 : `Resume AI provider request failed with status ${response.status}.`;
-        throw new Error(message);
+        throw new ResumeAIUnavailableError(message);
     }
 
     return await parseAIResponse<T>(response);
+}
+
+function truncateText(text: string, maxLength = 220): string {
+    if (text.length <= maxLength) return text;
+    return `${text.slice(0, maxLength).trimEnd()}…`;
+}
+
+function splitIntoKeywords(text: string): string[] {
+    return Array.from(new Set(
+        text
+            .toLowerCase()
+            .split(/[^a-z0-9+#.]+/i)
+            .map((token) => token.trim())
+            .filter((token) => token.length >= 4),
+    )).slice(0, 8);
+}
+
+function createLocalAnalysis(
+    sections: ResumeWorkspaceSection[],
+    jobDescription: string,
+): ResumeAnalysisResult {
+    const keywords = splitIntoKeywords(jobDescription);
+    const improvements = sections.map((section) => ({
+        sectionId: section.id,
+        heading: `Sharpen ${section.title}`,
+        before: truncateText(section.text, 120),
+        after: truncateText(
+            `${section.text.trim()} Focus on measurable outcomes, strong action verbs, and concise role-specific language${jobDescription ? ` aligned to ${keywords.slice(0, 3).join(", ") || "the target role"}` : ""}.`,
+            240,
+        ),
+    }));
+
+    return {
+        title: jobDescription ? "Resume review fallback" : "Resume review fallback",
+        summary: jobDescription
+            ? "AI analysis is temporarily unavailable, so a local review was generated from your current resume sections and the pasted job description."
+            : "AI analysis is temporarily unavailable, so a local review was generated from your current resume sections.",
+        score: jobDescription ? `${Math.min(96, 72 + keywords.length * 3)}% estimated match` : undefined,
+        keywords,
+        suggestions: [
+            "Lead each bullet with a decisive action verb.",
+            "Quantify outcomes with metrics, scope, or business impact.",
+            ...(jobDescription ? ["Mirror the most important job-description terminology where it truthfully matches your experience."] : []),
+        ],
+        improvements,
+    };
+}
+
+function createLocalGeneratedSection(prompt: string): ResumeGeneratedSection {
+    const topic = truncateText(prompt || "Professional Highlights", 60);
+    return {
+        title: "Custom Section",
+        layout: "full-width",
+        items: [
+            {
+                title: topic,
+                subtitle: "Locally generated fallback",
+                impact: "Convert this placeholder into specific wins, metrics, ownership, and tools relevant to the role you are targeting.",
+            },
+        ],
+    };
+}
+
+function createLocalCss(): { css: string } {
+    return {
+        css: [
+            ".resume-shell { font-family: 'Inter', Arial, sans-serif; color: #0f172a; }",
+            ".resume-shell .resume-header { border-bottom: 2px solid #cbd5e1; padding-bottom: 1rem; margin-bottom: 1.5rem; }",
+            ".resume-shell .resume-section { margin-bottom: 1.25rem; }",
+            ".resume-shell .resume-section h2 { font-size: 0.95rem; letter-spacing: 0.08em; text-transform: uppercase; color: #334155; margin-bottom: 0.5rem; }",
+            ".resume-shell .resume-section p, .resume-shell .resume-section li { line-height: 1.65; }",
+        ].join("\n"),
+    };
+}
+
+function createLocalDraft(fileName: string, text: string): ResumeDraftUploadResult {
+    const extractedText = text.trim();
+    const paragraphs = extractedText.split(/\n{2,}/).map((item) => item.trim()).filter(Boolean);
+    const sections = paragraphs.slice(0, 4).map((paragraph, index) => ({
+        id: `draft-${index + 1}`,
+        title: index === 0 ? "Profile" : `Imported Section ${index + 1}`,
+        text: truncateText(paragraph, 320),
+        badge: "Draft",
+        visible: true,
+        order: index,
+    }));
+
+    return {
+        fileName,
+        extractedText,
+        draftSummary: "AI extraction is temporarily unavailable, so the draft was created from the uploaded text using a local fallback parser.",
+        sections: sections.length > 0 ? sections : [{
+            id: "draft-1",
+            title: "Imported Draft",
+            text: "No readable content was found in the uploaded file.",
+            badge: "Draft",
+            visible: true,
+            order: 0,
+        }],
+    };
+}
+
+function createLocalCoverLetter(payload: {
+    company: string;
+    hiringManager: string;
+    jobDescription: string;
+    sections: ResumeWorkspaceSection[];
+}): ResumeCoverLetterResult {
+    const company = payload.company || "your company";
+    const greetingName = payload.hiringManager || "Hiring Manager";
+    const highlights = payload.sections.slice(0, 2).map((section) => `${section.title}: ${truncateText(section.text, 100)}`);
+
+    return {
+        subject: `Application for ${company}`,
+        greeting: `Dear ${greetingName},`,
+        opening: `I am excited to apply for the opportunity at ${company}. While the AI writing service is temporarily unavailable, this fallback cover letter is based on the experience currently shown in the resume workspace.`,
+        body: [
+            `My background includes ${highlights.join(" ")}`.trim(),
+            payload.jobDescription
+                ? `I would tailor the final version further by aligning it to priorities from the job description, especially around ${splitIntoKeywords(payload.jobDescription).slice(0, 4).join(", ") || "the role requirements"}.`
+                : "I would tailor the final version further once a specific job description is provided.",
+        ],
+        closing: "Thank you for your time and consideration. I would welcome the opportunity to discuss how my background can support your team.",
+        signature: "Best regards,\nYour Name",
+    };
+}
+
+function createLocalAIResponse(action: ResumeAction, payload: Record<string, unknown>) {
+    if (action === "analyze") {
+        const sections = (payload.sections as ResumeWorkspaceSection[]) ?? [];
+        const jobDescription = typeof payload.jobDescription === "string" ? payload.jobDescription : "";
+        return NextResponse.json({
+            analysis: createLocalAnalysis(sections, jobDescription),
+            fallback: true,
+        });
+    }
+
+    if (action === "generate-section") {
+        return NextResponse.json({
+            generatedSection: createLocalGeneratedSection(String(payload.prompt ?? "")),
+            fallback: true,
+        });
+    }
+
+    if (action === "generate-css") {
+        return NextResponse.json({
+            ...createLocalCss(),
+            fallback: true,
+        });
+    }
+
+    if (action === "upload-draft") {
+        return NextResponse.json({
+            draft: createLocalDraft(String(payload.fileName ?? "resume.txt"), String(payload.text ?? "")),
+            fallback: true,
+        });
+    }
+
+    if (action === "generate-cover-letter") {
+        return NextResponse.json({
+            coverLetter: createLocalCoverLetter({
+                company: String(payload.company ?? ""),
+                hiringManager: String(payload.hiringManager ?? ""),
+                jobDescription: String(payload.jobDescription ?? ""),
+                sections: (payload.sections as ResumeWorkspaceSection[]) ?? [],
+            }),
+            fallback: true,
+        });
+    }
+
+    return NextResponse.json({ error: "Unsupported resume action." }, { status: 400 });
 }
 
 export async function GET() {
@@ -204,6 +389,11 @@ async function handleAIAction(action: ResumeAction, payload: Record<string, unkn
 
         return NextResponse.json({ error: "Unsupported resume action." }, { status: 400 });
     } catch (error) {
+        if (error instanceof ResumeAIUnavailableError) {
+            console.warn("Falling back to local resume helpers because the AI provider is unavailable.", error.message);
+            return createLocalAIResponse(action, payload);
+        }
+
         const message = error instanceof Error ? error.message : "Resume AI request failed.";
         return NextResponse.json({ error: message }, { status: 502 });
     }
