@@ -1,0 +1,395 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String                 @id @default(cuid())
+  name           String                 @db.VarChar(60)
+  email          String                 @unique @db.VarChar(255)
+  image          String?
+  country        String?                @db.VarChar(50)
+  roleId         String
+  jobId          String?
+  planId         String
+  emailVerified  DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  chatHistories  AIChatHistory[]
+  accounts       Account[]
+  drafts         Draft[]
+  payments       Payment[]
+  portfolioUser  PortfolioUser?
+  resumeUser     ResumeUser?
+  sessions       Session[]
+  job            Job?                   @relation(fields: [jobId], references: [id])
+  plan           Plan                   @relation(fields: [planId], references: [id])
+  role           Role                   @relation(fields: [roleId], references: [id])
+  aiUsages       UserAIUsage[]
+  userPlans      UserPlan[]
+  inbox          UserPortfolioInbox[]
+  visitors       UserPortfolioVisitor[]
+  visitHistories VisitHistory[]
+}
+
+model Role {
+  id    String @id @default(cuid())
+  name  String @unique @db.VarChar(20)
+  users User[]
+}
+
+model Job {
+  id    String @id @default(cuid())
+  title String @unique @db.VarChar(100)
+  users User[]
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@id([identifier, token])
+}
+
+model UserPortfolioVisitor {
+  id              String               @id @default(cuid())
+  userId          String
+  visitorId       String               @db.VarChar(30)
+  ip              String               @db.VarChar(45)
+  country         String               @db.VarChar(50)
+  city            String               @db.VarChar(80)
+  continent       String               @db.VarChar(80)
+  timezone        String               @db.VarChar(60)
+  countVisits     Int
+  cvDownloadCount Int                  @default(0)
+  location        String               @db.VarChar(30)
+  geolocation     String               @default("") @db.VarChar(30)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  email           String?              @db.VarChar(255)
+  name            String?              @db.VarChar(60)
+  chatHistories   AIChatHistory[]
+  inboxMessages   UserPortfolioInbox[]
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, visitorId])
+  @@index([userId])
+  @@index([visitorId])
+}
+
+model UserPortfolioInbox {
+  id          String   @id @default(cuid())
+  userId      String
+  visitorDbId String
+  email       String   @db.VarChar(255)
+  message     String   @db.Text
+  subject     String   @db.VarChar(255)
+  name        String   @db.VarChar(60)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user    User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  visitor UserPortfolioVisitor @relation(fields: [visitorDbId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([visitorDbId])
+}
+
+model Plan {
+  id            String        @id @default(cuid())
+  name          String        @unique @db.VarChar(15)
+  duration      Int           @default(1)
+  price         Float
+  billing       String        @db.VarChar(20)
+  aiTokensLimit Int
+  portfolios    Portfolio[]
+  resumes       Resume[]
+  users         User[]
+  userPlans     UserPlan[]
+  features      PlanFeature[] @relation("PlansFeatures")
+}
+
+model PlanFeature {
+  id    String @id @default(cuid())
+  name  String @unique @db.VarChar(30)
+  plans Plan[] @relation("PlansFeatures")
+}
+
+model UserAIUsage {
+  id          String      @id @default(cuid())
+  userId      String
+  userPlanId  String
+  tokensUsed  Int         @default(0)
+  tokensLimit Int
+  periodStart DateTime
+  periodEnd   DateTime
+  status      UsageStatus @default(active)
+  updatedAt   DateTime    @updatedAt
+  user        User        @relation(fields: [userId], references: [id])
+  userPlan    UserPlan    @relation(fields: [userPlanId], references: [id])
+
+  @@index([userId])
+  @@index([userPlanId])
+}
+
+model UserPlan {
+  id        String        @id @default(cuid())
+  userId    String
+  planId    String
+  billing   String
+  startDate DateTime      @default(now())
+  endDate   DateTime?
+  status    PlanStatus    @default(active)
+  updatedAt DateTime      @updatedAt
+  payments  Payment[]
+  aiUsages  UserAIUsage[]
+  plan      Plan          @relation(fields: [planId], references: [id])
+  user      User          @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([planId])
+}
+
+model Payment {
+  id              String    @id @default(cuid())
+  userId          String
+  userPlanId      String?
+  customerId      String
+  sessionId       String
+  transactionId   String    @unique
+  phase           String[]
+  status          String[]
+  productId       String
+  priceId         String
+  priceName       String
+  currency        String
+  total           Float?
+  success         Boolean
+  paymentType     String
+  cardNo4         Int?
+  cardType        String?
+  cardExpiryMonth Int?
+  cardExpiryYear  Int?
+  timestamp       DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userPlan        UserPlan? @relation(fields: [userPlanId], references: [id])
+
+  @@index([userId])
+  @@index([userPlanId])
+}
+
+model Portfolio {
+  id             String          @id @default(cuid())
+  name           String          @unique @db.VarChar(20)
+  target         String[]
+  image          String
+  features       String[]
+  description    String          @db.VarChar(200)
+  html           String
+  preview        String
+  planId         String
+  plan           Plan            @relation(fields: [planId], references: [id])
+  portfolioUsers PortfolioUser[]
+
+  @@index([planId])
+}
+
+model Resume {
+  id          String       @id @default(cuid())
+  name        String       @unique @db.VarChar(20)
+  type        ResumeType
+  target      String[]
+  image       String
+  features    String[]
+  description String       @db.VarChar(200)
+  planId      String
+  plan        Plan         @relation(fields: [planId], references: [id])
+  resumeUsers ResumeUser[]
+
+  @@index([planId])
+}
+
+model ResumeUser {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  resumeId              String
+  content               Json
+  isDownloaded          Boolean  @default(false)
+  isLinkedWithPortfolio Boolean  @default(false)
+  updatedAt             DateTime @updatedAt
+  createdAt             DateTime @default(now())
+  resume                Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([resumeId])
+}
+
+model PortfolioUser {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  portfolioId   String
+  html          String
+  subDomain     String?   @unique
+  content       Json
+  isDeployed    Boolean   @default(false)
+  countOfDeploy Int?      @default(0)
+  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime  @default(now())
+  portfolio     Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId])
+}
+
+model Draft {
+  id        String    @id @default(cuid())
+  userId    String
+  entity    DraftType
+  content   Json
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Inbox {
+  id        String   @id @default(cuid())
+  email     String   @db.VarChar(100)
+  message   String
+  subject   String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ErrorLog {
+  id        String   @id @default(cuid())
+  type      String
+  message   String
+  stack     String?
+  endpoint  String?
+  createdAt DateTime @default(now())
+}
+
+model VisitHistory {
+  id          String     @id @default(cuid())
+  VisitorId   String     @unique @db.VarChar(40)
+  userId      String?    @unique
+  language    String?
+  platform    String?
+  browser     String?
+  isMobile    Boolean
+  ip          String?
+  continent   String?
+  country     String?
+  city        String?
+  timezone    String?
+  countVisits Int
+  userAgent   String?
+  referrer    String?
+  location    String?
+  lastSeen    DateTime   @default(now())
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  user        User?      @relation(fields: [userId], references: [id])
+  tracking    Tracking[]
+
+  @@index([userId])
+}
+
+model Tracking {
+  id             String       @id @default(cuid())
+  visitHistoryId String
+  url            String
+  referrer       String?
+  createdAt      DateTime     @default(now())
+  visitHistory   VisitHistory @relation(fields: [visitHistoryId], references: [id])
+}
+
+model Component {
+  id        String   @id @default(cuid())
+  name      String   @unique @db.VarChar(100)
+  section   String   @db.VarChar(100)
+  html      String
+  preview   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AIChatHistory {
+  id        String               @id @default(cuid())
+  userId    String
+  visitorId String
+  message   String
+  role      ChatRole
+  createdAt DateTime             @default(now())
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  visitor   UserPortfolioVisitor @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([visitorId])
+}
+
+enum PlanStatus {
+  active
+  canceled
+  expired
+}
+
+enum UsageStatus {
+  active
+  expired
+  canceled
+}
+
+enum ResumeType {
+  ATS
+  REGULAR
+}
+
+enum DraftType {
+  RESUME
+  PORTFOLIO
+  CHATBOT
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+}

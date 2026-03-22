@@ -1,0 +1,82 @@
+@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+@keyframes blink {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Animation Classes */
+.animate-float {
+  animation: float 2s ease-in-out infinite;
+}
+
+.animate-blink {
+  animation: blink 1s ease-in-out infinite;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.8s ease-out forwards;
+  transform: translateY(20px);
+  opacity: 0;
+}
+
+/* Star Animation Delays */
+#star2 { animation-delay: 100ms; }
+#star3 { animation-delay: 500ms; }
+#star4 { animation-delay: 700ms; }
+#star5 { animation-delay: 300ms; }
+#star6 { animation-delay: 200ms; }
+
+/* Envelope Animation */
+#envelope {
+  animation: float 2s ease-in-out infinite;
+}
+
+/* Form Input States */
+.form-label.floating {
+  top: -0.5rem;
+  left: 1rem;
+  font-size: 0.85rem;
+  color: #ff6b35;
+  font-weight: 600;
+  background: #ffffff;
+}
+
+.form-input.valid,
+.form-textarea.valid {
+  border-color: #10b981;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2310b981'%3e%3cpath fill-rule='evenodd' d='M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z' clip-rule='evenodd'/%3e%3c/svg%3e");
+  background-position: right 0.75rem center;
+  background-size: 1rem;
+  background-repeat: no-repeat;
+  padding-right: 3rem;
+}
