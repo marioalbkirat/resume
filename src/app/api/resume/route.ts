@@ -30,30 +30,36 @@ async function callOpenRouter<T>(systemPrompt: string, userPrompt: string): Prom
     const apiKey = process.env.OPENROUTER_KEY ?? process.env.OPENROUTER_API_KEY;
     if (!apiKey) return null;
 
-    const response = await fetch(OPENROUTER_URL, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-            model: OPENROUTER_MODEL,
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userPrompt },
-            ],
-            response_format: { type: "json_object" },
-            temperature: 0,
-            max_tokens: 2500,
-        }),
-    });
+    try {
+        const response = await fetch(OPENROUTER_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+                model: OPENROUTER_MODEL,
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userPrompt },
+                ],
+                response_format: { type: "json_object" },
+                temperature: 0,
+                max_tokens: 2500,
+            }),
+        });
 
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error?.message ?? `AI API request failed with ${response.status}.`);
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            console.error("Resume AI provider request failed.", error);
+            return null;
+        }
+
+        return await parseAIResponse<T>(response);
+    } catch (error) {
+        console.error("Resume AI provider parsing failed.", error);
+        return null;
     }
-
-    return parseAIResponse<T>(response);
 }
 
 function fallbackAnalysis(sections: ResumeWorkspaceSection[], jobDescription?: string): ResumeAnalysisResult {

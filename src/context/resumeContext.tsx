@@ -71,10 +71,12 @@ interface ResumeContextValue {
     setJobDescription: (value: string) => void;
     analysisState: "idle" | "running" | "ready" | "applied";
     analysisFeed: string;
+    analysisError: string | null;
     analysisResult: ResumeAnalysisResult | null;
     builderPrompt: string;
     setBuilderPrompt: (value: string) => void;
     generatedCss: string;
+    builderStatus: string;
     builderAccepted: boolean;
     uploadedDraftSummary: string;
     customSectionPrompt: string;
@@ -85,6 +87,7 @@ interface ResumeContextValue {
     applyAnalysis: () => Promise<void>;
     rejectAnalysis: () => void;
     handleDraftUpload: (file: File) => Promise<void>;
+    optimizeSection: (sectionId: string) => Promise<void>;
     generateCustomSection: () => Promise<void>;
     buildCss: () => Promise<void>;
     acceptGeneratedCss: () => void;
@@ -120,8 +123,10 @@ export function ResumeProvider({ children, resumeId }: { children: React.ReactNo
     const [analysisState, setAnalysisState] = useState<"idle" | "running" | "ready" | "applied">("idle");
     const [analysisFeed, setAnalysisFeed] = useState("Run AI analysis to receive resume improvements, job-match insights, or missing keywords.");
     const [analysisResult, setAnalysisResult] = useState<ResumeAnalysisResult | null>(null);
+    const [analysisError, setAnalysisError] = useState<string | null>(null);
     const [builderPrompt, setBuilderPrompt] = useState("Create a targeted hybrid resume with two columns, subtle navy accents, ordered sections for profile, experience, projects, skills, education, and certifications. Keep default values unless specified and provide only CSS.");
     const [generatedCss, setGeneratedCss] = useState("");
+    const [builderStatus, setBuilderStatus] = useState("Describe the target layout and generate CSS-only output for the shared resume HTML.");
     const [builderAccepted, setBuilderAccepted] = useState(false);
     const [uploadedDraftSummary, setUploadedDraftSummary] = useState("Upload a PDF, DOC, or DOCX resume to extract sections into Draft-ready data.");
     const [customSectionPrompt, setCustomSectionPrompt] = useState("Add a Volunteer Leadership section highlighting mentorship, community workshops, and measurable outcomes.");
@@ -137,12 +142,18 @@ export function ResumeProvider({ children, resumeId }: { children: React.ReactNo
 
     const runAnalysis = useCallback(async () => {
         setIsBusy(true);
+        setAnalysisError(null);
         setAnalysisState("running");
         try {
             const result = await analyzeResume({ sections: sortedSections, jobDescription });
             setAnalysisResult(result);
             setAnalysisFeed(result.summary);
             setAnalysisState("ready");
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Resume analysis failed.";
+            setAnalysisError(message);
+            setAnalysisFeed(message);
+            setAnalysisState("idle");
         } finally {
             setIsBusy(false);
         }
@@ -196,6 +207,44 @@ export function ResumeProvider({ children, resumeId }: { children: React.ReactNo
         }
     }, []);
 
+    const optimizeSection = useCallback(async (sectionId: string) => {
+        const targetSection = sortedSections.find((section) => section.id === sectionId);
+        if (!targetSection) return;
+
+        setIsBusy(true);
+        setAnalysisError(null);
+        setAnalysisState("running");
+        setAnalysisFeed(`Optimizing ${targetSection.title} with AI...`);
+
+        try {
+            const result = await analyzeResume({ sections: [targetSection] });
+            const improvement = result.improvements[0];
+
+            if (!improvement) {
+                setAnalysisFeed(`No optimized copy was returned for ${targetSection.title}.`);
+                setAnalysisState("idle");
+                return;
+            }
+
+            await animateText(improvement.after, (value) => {
+                setSections((current) => current.map((section) =>
+                    section.id === targetSection.id ? { ...section, text: value } : section,
+                ));
+            });
+
+            setAnalysisResult(result);
+            setAnalysisFeed(`${targetSection.title} was optimized and synced to the live preview.`);
+            setAnalysisState("applied");
+        } catch (error) {
+            const message = error instanceof Error ? error.message : `Failed to optimize ${targetSection.title}.`;
+            setAnalysisError(message);
+            setAnalysisFeed(message);
+            setAnalysisState("idle");
+        } finally {
+            setIsBusy(false);
+        }
+    }, [sortedSections]);
+
     const generateCustomSection = useCallback(async () => {
         setIsBusy(true);
         try {
@@ -208,16 +257,24 @@ export function ResumeProvider({ children, resumeId }: { children: React.ReactNo
 
     const buildCss = useCallback(async () => {
         setIsBusy(true);
+        setBuilderStatus("Generating CSS for the shared resume HTML...");
         try {
             const css = await generateResumeCss({ prompt: builderPrompt, sections: sortedSections });
             setGeneratedCss(css);
             setBuilderAccepted(false);
+            setBuilderStatus("CSS generated successfully. Review it, preview it, and accept it when ready.");
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "CSS generation failed.";
+            setBuilderStatus(message);
         } finally {
             setIsBusy(false);
         }
     }, [builderPrompt, sortedSections]);
 
-    const acceptGeneratedCss = () => setBuilderAccepted(true);
+    const acceptGeneratedCss = () => {
+        setBuilderAccepted(true);
+        setBuilderStatus("Accepted CSS is ready to store on the Resume record for this shared template structure.");
+    };
 
     const toggleSectionVisibility = (sectionId: string) => {
         setSections((current) => current.map((section) =>
@@ -257,10 +314,12 @@ export function ResumeProvider({ children, resumeId }: { children: React.ReactNo
         setJobDescription,
         analysisState,
         analysisFeed,
+        analysisError,
         analysisResult,
         builderPrompt,
         setBuilderPrompt,
         generatedCss,
+        builderStatus,
         builderAccepted,
         uploadedDraftSummary,
         customSectionPrompt,
@@ -271,6 +330,7 @@ export function ResumeProvider({ children, resumeId }: { children: React.ReactNo
         applyAnalysis,
         rejectAnalysis,
         handleDraftUpload,
+        optimizeSection,
         generateCustomSection,
         buildCss,
         acceptGeneratedCss,
@@ -287,9 +347,11 @@ export function ResumeProvider({ children, resumeId }: { children: React.ReactNo
         jobDescription,
         analysisState,
         analysisFeed,
+        analysisError,
         analysisResult,
         builderPrompt,
         generatedCss,
+        builderStatus,
         builderAccepted,
         uploadedDraftSummary,
         customSectionPrompt,
@@ -298,6 +360,7 @@ export function ResumeProvider({ children, resumeId }: { children: React.ReactNo
         runAnalysis,
         applyAnalysis,
         handleDraftUpload,
+        optimizeSection,
         generateCustomSection,
         buildCss,
     ]);

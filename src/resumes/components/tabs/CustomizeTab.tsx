@@ -15,6 +15,7 @@ export default function CustomizeTab() {
         moveSection,
         customSectionPrompt,
         setCustomSectionPrompt,
+        optimizeSection,
         generateCustomSection,
         generatedSections,
         isBusy,
@@ -49,15 +50,20 @@ export default function CustomizeTab() {
             <div className="rounded-3xl border border-slate-200 p-4">
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">AI bot entry points</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                    {customizableSections.map((section) => (
-                        <button
-                            key={section}
-                            type="button"
-                            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-indigo-300 hover:text-indigo-700"
-                        >
-                            <FiCpu className="h-4 w-4" /> {section}
-                        </button>
-                    ))}
+                    {customizableSections.map((section) => {
+                        const target = sections.find((item) => item.title === section || item.id === section.toLowerCase());
+                        return (
+                            <button
+                                key={section}
+                                type="button"
+                                disabled={!target || isBusy}
+                                onClick={() => target ? void optimizeSection(target.id) : undefined}
+                                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-indigo-300 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                <FiCpu className="h-4 w-4" /> Optimize {section}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
             <div className="rounded-3xl border border-slate-200 p-4">

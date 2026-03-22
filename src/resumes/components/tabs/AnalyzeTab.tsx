@@ -9,6 +9,7 @@ export default function AnalyzeTab() {
         setJobDescription,
         analysisResult,
         analysisFeed,
+        analysisError,
         analysisState,
         isBusy,
         runAnalysis,
@@ -90,9 +91,9 @@ export default function AnalyzeTab() {
                         </div>
                     ))}
                 </div>
-                <div className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm leading-6 text-emerald-50">
+                <div className={`mt-5 rounded-2xl border p-4 text-sm leading-6 ${analysisError ? "border-rose-400/20 bg-rose-400/10 text-rose-50" : "border-emerald-400/20 bg-emerald-400/10 text-emerald-50"}`}>
                     {analysisFeed}
-                    <span className="mt-2 block text-xs uppercase tracking-[0.2em] text-emerald-200/70">Status: {analysisState}</span>
+                    <span className={`mt-2 block text-xs uppercase tracking-[0.2em] ${analysisError ? "text-rose-200/70" : "text-emerald-200/70"}`}>Status: {analysisState}</span>
                 </div>
             </div>
         </div>

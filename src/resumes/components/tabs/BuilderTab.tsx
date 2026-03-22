@@ -10,6 +10,7 @@ export default function BuilderTab() {
         generatedCss,
         buildCss,
         acceptGeneratedCss,
+        builderStatus,
         builderAccepted,
         isBusy,
     } = useResume();
@@ -39,6 +40,7 @@ export default function BuilderTab() {
                 </button>
             </div>
             <div className="rounded-3xl bg-slate-950 p-4 text-sm text-slate-100">
+                <p className="text-sm leading-6 text-slate-300">{builderStatus}</p>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">AI response</p>
                 <pre className="mt-3 overflow-x-auto rounded-2xl bg-black/20 p-4 text-xs leading-6 text-emerald-300">{generatedCss ? `\`\`\`css\n${generatedCss}\n\`\`\`` : "Awaiting CSS response..."}</pre>
             </div>
