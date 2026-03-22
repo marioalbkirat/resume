@@ -13,6 +13,9 @@ type ResumeType = Omit<Resume, "resumeUsers" | "plan">;
 
 type ResumeAction = "analyze" | "generate-section" | "generate-css" | "upload-draft";
 
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_MODEL = "stepfun/step-3.5-flash";
+
 async function parseAIResponse<T>(response: Response): Promise<T> {
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
@@ -24,24 +27,23 @@ async function parseAIResponse<T>(response: Response): Promise<T> {
 }
 
 async function callOpenRouter<T>(systemPrompt: string, userPrompt: string): Promise<T | null> {
-    if (!process.env.OPENROUTER_API_KEY) return null;
+    const apiKey = process.env.OPENROUTER_KEY ?? process.env.OPENROUTER_API_KEY;
+    if (!apiKey) return null;
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch(OPENROUTER_URL, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-            "HTTP-Referer": "http://localhost:3000",
-            "X-Title": "PortCV Resume Workspace",
+            Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-            model: "google/gemini-2.0-flash-001",
+            model: OPENROUTER_MODEL,
             messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userPrompt },
             ],
             response_format: { type: "json_object" },
-            temperature: 0.2,
+            temperature: 0,
             max_tokens: 2500,
         }),
     });

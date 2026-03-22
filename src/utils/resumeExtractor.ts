@@ -2,6 +2,18 @@ import { PDFParse } from 'pdf-parse';
 import path from 'path';
 import { pathToFileURL } from 'url';
 
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_MODEL = "stepfun/step-3.5-flash";
+const OPENROUTER_KEY = process.env.OPENROUTER_KEY ?? process.env.OPENROUTER_API_KEY;
+
+type OpenRouterMessageContent =
+    | { type: "text"; text: string }
+    | { type: "image_url"; image_url: { url: string } };
+
+function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
 // Explicitly set the worker source for pdfjs-dist when running on the server.
 // This prevents Next.js from trying to load it from the wrong location in the .next folder.
 if (typeof window === 'undefined') {
@@ -46,11 +58,11 @@ export async function structureResumeData(data: { text: string, screenshot?: str
     }
 
     const MAX_RETRIES = 2;
-    let lastError: any = null;
+    let lastError: Error | null = null;
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
         try {
-            const userContent: any[] = [{ type: "text", text: text.slice(0, 30000) }];
+            const userContent: OpenRouterMessageContent[] = [{ type: "text", text: text.slice(0, 30000) }];
 
             // Add image to prompt if we have a vision fallback
             if (screenshot) {
@@ -60,16 +72,18 @@ export async function structureResumeData(data: { text: string, screenshot?: str
                 });
             }
 
-            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            if (!OPENROUTER_KEY) {
+                throw new Error("Missing OPENROUTER_KEY environment variable.");
+            }
+
+            const response = await fetch(OPENROUTER_URL, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-                    "HTTP-Referer": "http://localhost:3000",
-                    "X-Title": "PortCV Resume Extractor",
+                    "Authorization": `Bearer ${OPENROUTER_KEY}`,
                 },
                 body: JSON.stringify({
-                    "model": "google/gemini-2.0-flash-001", // Switched to a more robust model
+                    "model": OPENROUTER_MODEL,
                     messages: [
                         {
                             role: "system",
@@ -96,8 +110,8 @@ export async function structureResumeData(data: { text: string, screenshot?: str
                         }
                     ],
                     "response_format": { "type": "json_object" },
-                    "max_tokens": 5000,
-                    "temperature": 0.1,
+                    "max_tokens": 2500,
+                    "temperature": 0,
                 })
             });
 
@@ -120,9 +134,9 @@ export async function structureResumeData(data: { text: string, screenshot?: str
             }
 
             return result;
-        } catch (error: any) {
-            lastError = error;
-            console.error(`Attempt ${attempt + 1} failed:`, error.message);
+        } catch (error: unknown) {
+            lastError = error instanceof Error ? error : new Error(String(error));
+            console.error(`Attempt ${attempt + 1} failed:`, getErrorMessage(error));
             if (attempt < MAX_RETRIES) {
                 await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1))); // Exponential backoff
                 continue;

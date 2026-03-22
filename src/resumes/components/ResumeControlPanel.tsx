@@ -1,6 +1,6 @@
 "use client";
 
-import { FiCpu, FiEye, FiFileText, FiLayers, FiPalette, FiSparkles, FiUpload, FiZap } from "react-icons/fi";
+import { FiCpu, FiEdit3, FiEye, FiFileText, FiLayers, FiStar, FiUpload, FiZap } from "react-icons/fi";
 import { useResume } from "@/src/context/resumeContext";
 import AnalyzeTab from "./tabs/AnalyzeTab";
 import BuilderTab from "./tabs/BuilderTab";
@@ -13,8 +13,8 @@ const tabs: Array<{ id: ResumeWorkspaceTab; label: string; icon: React.Component
     { id: "templates", label: "Templates", icon: FiLayers },
     { id: "analyze", label: "Analyze resume", icon: FiCpu },
     { id: "manage", label: "Manage resume", icon: FiUpload },
-    { id: "customize", label: "Customize Resume", icon: FiPalette },
-    { id: "builder", label: "Build resume by AI", icon: FiSparkles },
+    { id: "customize", label: "Customize Resume", icon: FiEdit3 },
+    { id: "builder", label: "Build resume by AI", icon: FiStar },
 ];
 
 export default function ResumeControlPanel() {
